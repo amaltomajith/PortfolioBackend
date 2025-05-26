@@ -8,7 +8,7 @@ const port = process.env.PORT || 3000;
 // Middleware
 app.use(express.json());
 app.use(cors({
-    origin: '*', // Allow all origins during testing
+    origin: ['https://amaltomajith.github.io', 'http://localhost:3000'], // Allow GitHub Pages and local development
     methods: ['POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Accept'],
     credentials: true
@@ -17,6 +17,11 @@ app.use(cors({
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// Add a health check endpoint
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', message: 'Server is running' });
+});
+
 app.post('/api/chat', async (req, res) => {
     try {
         console.log('Received request:', req.body); // Log incoming request
@@ -24,6 +29,12 @@ app.post('/api/chat', async (req, res) => {
         const { message } = req.body;
         if (!message) {
             return res.status(400).json({ error: 'Message is required' });
+        }
+
+        // Check if API key is configured
+        if (!process.env.GEMINI_API_KEY) {
+            console.error('GEMINI_API_KEY is not configured');
+            return res.status(500).json({ error: 'API key not configured' });
         }
 
         // Initialize the model
