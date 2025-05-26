@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenAI } = require('@google/genai');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -15,7 +15,7 @@ app.use(cors({
 }));
 
 // Initialize Gemini
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const ai = new GoogleGenAI(process.env.GEMINI_API_KEY);
 
 // Add a health check endpoint
 app.get('/health', (req, res) => {
@@ -37,19 +37,16 @@ app.post('/api/chat', async (req, res) => {
             return res.status(500).json({ error: 'API key not configured' });
         }
 
-        // Initialize the model
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        // Generate response using the new API
+        const model = ai.models;
+        const response = await model.generateContent({
+            model: "gemini-2.0-flash",
+            contents: message
+        });
         
-        console.log('Generating response for:', message); // Log before generating
+        console.log('Generated response:', response.text); // Log response
         
-        // Generate response
-        const result = await model.generateContent(message);
-        const response = await result.response;
-        const text = response.text();
-        
-        console.log('Generated response:', text); // Log response
-        
-        res.json({ response: text });
+        res.json({ response: response.text });
     } catch (error) {
         console.error('Detailed error:', error);
         if (error.message?.includes('API key')) {
