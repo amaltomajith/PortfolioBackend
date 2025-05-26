@@ -6,10 +6,14 @@ const OpenAI = require('openai');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Initialize OpenAI with DeepSeek configuration
+// Initialize OpenAI with OpenRouter configuration
 const openai = new OpenAI({
-    baseURL: 'https://api.deepseek.com',
-    apiKey: process.env.DEEPSEEK_API_KEY
+    baseURL: "https://openrouter.ai/api/v1",
+    apiKey: process.env.OPENROUTER_API_KEY,
+    defaultHeaders: {
+        "HTTP-Referer": "https://amaltomajith.github.io",
+        "X-Title": "Amal's Portfolio",
+    }
 });
 
 // Middleware
@@ -34,8 +38,8 @@ app.get('/', (req, res) => {
 
 // Add a health check endpoint
 app.get('/health', (req, res) => {
-    const apiKeyStatus = process.env.DEEPSEEK_API_KEY ? 
-        `configured (length: ${process.env.DEEPSEEK_API_KEY.length})` : 
+    const apiKeyStatus = process.env.OPENROUTER_API_KEY ? 
+        `configured (length: ${process.env.OPENROUTER_API_KEY.length})` : 
         'missing';
     
     res.json({ 
@@ -44,7 +48,7 @@ app.get('/health', (req, res) => {
         config: {
             apiKey: apiKeyStatus,
             nodeEnv: process.env.NODE_ENV || 'not set',
-            model: 'deepseek-lite'
+            model: 'deepseek/deepseek-chat-v3-0324:free'
         }
     });
 });
@@ -59,22 +63,22 @@ app.post('/api/chat', async (req, res) => {
         }
 
         // Check if API key is configured
-        if (!process.env.DEEPSEEK_API_KEY) {
-            console.error('DEEPSEEK_API_KEY is not configured');
+        if (!process.env.OPENROUTER_API_KEY) {
+            console.error('OPENROUTER_API_KEY is not configured');
             return res.status(500).json({ 
                 error: 'API key not configured',
-                details: 'The DeepSeek API key is missing from environment variables'
+                details: 'The OpenRouter API key is missing from environment variables'
             });
         }
 
         // Log API key length and configuration
-        console.log('API key length:', process.env.DEEPSEEK_API_KEY.length);
+        console.log('API key length:', process.env.OPENROUTER_API_KEY.length);
         console.log('OpenAI configuration:', {
             baseURL: openai.baseURL,
             defaultHeaders: openai.defaultHeaders,
             defaultQuery: openai.defaultQuery
         });
-        console.log('Making request to DeepSeek API...');
+        console.log('Making request to OpenRouter API...');
 
         try {
             const completion = await openai.chat.completions.create({
@@ -82,12 +86,12 @@ app.post('/api/chat', async (req, res) => {
                     { role: "system", content: "You are a helpful assistant." },
                     { role: "user", content: message }
                 ],
-                model: "deepseek-lite",
+                model: "deepseek/deepseek-chat-v3-0324:free",
                 temperature: 0.7,
                 max_tokens: 2000
             });
 
-            console.log('DeepSeek API response received:', completion);
+            console.log('OpenRouter API response received:', completion);
             
             if (!completion.choices || !completion.choices[0]?.message?.content) {
                 console.error('Unexpected response format:', completion);
@@ -103,7 +107,7 @@ app.post('/api/chat', async (req, res) => {
             
             res.json({ response: generatedText });
         } catch (apiError) {
-            console.error('DeepSeek API Error:', {
+            console.error('OpenRouter API Error:', {
                 message: apiError.message,
                 type: apiError.type,
                 code: apiError.code,
@@ -112,7 +116,7 @@ app.post('/api/chat', async (req, res) => {
             });
             
             return res.status(500).json({
-                error: 'DeepSeek API Error',
+                error: 'OpenRouter API Error',
                 details: apiError.message,
                 type: apiError.type,
                 code: apiError.code,
@@ -149,8 +153,8 @@ app.use((err, req, res, next) => {
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
     console.log('Environment check:');
-    console.log('- API key configured:', !!process.env.DEEPSEEK_API_KEY);
-    if (process.env.DEEPSEEK_API_KEY) {
-        console.log('- API key length:', process.env.DEEPSEEK_API_KEY.length);
+    console.log('- API key configured:', !!process.env.OPENROUTER_API_KEY);
+    if (process.env.OPENROUTER_API_KEY) {
+        console.log('- API key length:', process.env.OPENROUTER_API_KEY.length);
     }
 }); 
