@@ -1,9 +1,15 @@
 const express = require('express');
 const cors = require('cors');
-const fetch = require('node-fetch'); // We'll need this for making HTTP requests
+const OpenAI = require('openai');
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+// Initialize OpenAI with DeepSeek configuration
+const openai = new OpenAI({
+    baseURL: 'https://api.deepseek.com',
+    apiKey: process.env.DEEPSEEK_API_KEY
+});
 
 // Middleware
 app.use(express.json());
@@ -27,8 +33,8 @@ app.get('/', (req, res) => {
 
 // Add a health check endpoint
 app.get('/health', (req, res) => {
-    const apiKeyStatus = process.env.GEMINI_API_KEY ? 
-        `configured (length: ${process.env.GEMINI_API_KEY.length})` : 
+    const apiKeyStatus = process.env.DEEPSEEK_API_KEY ? 
+        `configured (length: ${process.env.DEEPSEEK_API_KEY.length})` : 
         'missing';
     
     res.json({ 
@@ -36,7 +42,8 @@ app.get('/health', (req, res) => {
         message: 'Server is running',
         config: {
             apiKey: apiKeyStatus,
-            nodeEnv: process.env.NODE_ENV || 'not set'
+            nodeEnv: process.env.NODE_ENV || 'not set',
+            model: 'deepseek-chat'
         }
     });
 });
@@ -51,76 +58,38 @@ app.post('/api/chat', async (req, res) => {
         }
 
         // Check if API key is configured
-        if (!process.env.GEMINI_API_KEY) {
-            console.error('GEMINI_API_KEY is not configured');
+        if (!process.env.DEEPSEEK_API_KEY) {
+            console.error('DEEPSEEK_API_KEY is not configured');
             return res.status(500).json({ 
                 error: 'API key not configured',
-                details: 'The Gemini API key is missing from environment variables'
+                details: 'The DeepSeek API key is missing from environment variables'
             });
         }
 
         // Log API key length for debugging (never log the actual key)
-        console.log('API key length:', process.env.GEMINI_API_KEY.length);
-        console.log('Making request to Gemini API...');
-        
-        const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`;
-        console.log('API URL (without key):', apiUrl.split('?')[0]);
-        
-        // Call Gemini API directly
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                contents: [
-                    {
-                        parts: [
-                            {
-                                text: message
-                            }
-                        ]
-                    }
-                ]
-            })
+        console.log('API key length:', process.env.DEEPSEEK_API_KEY.length);
+        console.log('Making request to DeepSeek API...');
+
+        const completion = await openai.chat.completions.create({
+            messages: [
+                { role: "system", content: "You are a helpful assistant." },
+                { role: "user", content: message }
+            ],
+            model: "deepseek-chat",
         });
 
-        console.log('Gemini API response status:', response.status);
+        console.log('DeepSeek API response received');
         
-        const responseText = await response.text();
-        console.log('Raw Gemini API response:', responseText);
-
-        let data;
-        try {
-            data = JSON.parse(responseText);
-        } catch (e) {
-            console.error('Failed to parse Gemini API response:', e);
-            return res.status(500).json({
-                error: 'Invalid response from Gemini API',
-                details: 'Failed to parse JSON response',
-                rawResponse: responseText
-            });
-        }
-
-        if (!response.ok) {
-            console.error('Gemini API error:', data);
-            return res.status(500).json({
-                error: 'Gemini API error',
-                details: data.error?.message || 'Unknown error from Gemini API',
-                rawError: data.error || data
-            });
-        }
-
-        if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
-            console.error('Unexpected response format:', data);
+        if (!completion.choices || !completion.choices[0]?.message?.content) {
+            console.error('Unexpected response format:', completion);
             return res.status(500).json({
                 error: 'Unexpected response format',
                 details: 'The API response did not contain the expected data structure',
-                received: data
+                received: completion
             });
         }
 
-        const generatedText = data.candidates[0].content.parts[0].text;
+        const generatedText = completion.choices[0].message.content;
         console.log('Generated response:', generatedText);
         
         res.json({ response: generatedText });
@@ -149,8 +118,8 @@ app.use((err, req, res, next) => {
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
     console.log('Environment check:');
-    console.log('- API key configured:', !!process.env.GEMINI_API_KEY);
-    if (process.env.GEMINI_API_KEY) {
-        console.log('- API key length:', process.env.GEMINI_API_KEY.length);
+    console.log('- API key configured:', !!process.env.DEEPSEEK_API_KEY);
+    if (process.env.DEEPSEEK_API_KEY) {
+        console.log('- API key length:', process.env.DEEPSEEK_API_KEY.length);
     }
 }); 
