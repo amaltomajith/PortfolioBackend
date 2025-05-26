@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const OpenAI = require('openai');
@@ -66,41 +67,71 @@ app.post('/api/chat', async (req, res) => {
             });
         }
 
-        // Log API key length for debugging (never log the actual key)
+        // Log API key length and configuration
         console.log('API key length:', process.env.DEEPSEEK_API_KEY.length);
+        console.log('OpenAI configuration:', {
+            baseURL: openai.baseURL,
+            defaultHeaders: openai.defaultHeaders,
+            defaultQuery: openai.defaultQuery
+        });
         console.log('Making request to DeepSeek API...');
 
-        const completion = await openai.chat.completions.create({
-            messages: [
-                { role: "system", content: "You are a helpful assistant." },
-                { role: "user", content: message }
-            ],
-            model: "deepseek-chat",
-        });
+        try {
+            const completion = await openai.chat.completions.create({
+                messages: [
+                    { role: "system", content: "You are a helpful assistant." },
+                    { role: "user", content: message }
+                ],
+                model: "deepseek-chat",
+                temperature: 0.7,
+                max_tokens: 2000
+            });
 
-        console.log('DeepSeek API response received');
-        
-        if (!completion.choices || !completion.choices[0]?.message?.content) {
-            console.error('Unexpected response format:', completion);
+            console.log('DeepSeek API response received:', completion);
+            
+            if (!completion.choices || !completion.choices[0]?.message?.content) {
+                console.error('Unexpected response format:', completion);
+                return res.status(500).json({
+                    error: 'Unexpected response format',
+                    details: 'The API response did not contain the expected data structure',
+                    received: completion
+                });
+            }
+
+            const generatedText = completion.choices[0].message.content;
+            console.log('Generated response:', generatedText);
+            
+            res.json({ response: generatedText });
+        } catch (apiError) {
+            console.error('DeepSeek API Error:', {
+                message: apiError.message,
+                type: apiError.type,
+                code: apiError.code,
+                stack: apiError.stack,
+                response: apiError.response?.data
+            });
+            
             return res.status(500).json({
-                error: 'Unexpected response format',
-                details: 'The API response did not contain the expected data structure',
-                received: completion
+                error: 'DeepSeek API Error',
+                details: apiError.message,
+                type: apiError.type,
+                code: apiError.code,
+                response: apiError.response?.data
             });
         }
-
-        const generatedText = completion.choices[0].message.content;
-        console.log('Generated response:', generatedText);
-        
-        res.json({ response: generatedText });
     } catch (error) {
-        console.error('Detailed error:', error);
+        console.error('Detailed error:', {
+            message: error.message,
+            type: error.name,
+            code: error.code,
+            stack: error.stack
+        });
         res.status(500).json({ 
             error: 'Failed to process the request',
             details: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
             type: error.name,
-            code: error.code
+            code: error.code,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 });
