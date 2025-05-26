@@ -44,7 +44,7 @@ app.get('/health', (req, res) => {
         config: {
             apiKey: apiKeyStatus,
             nodeEnv: process.env.NODE_ENV || 'not set',
-            model: 'deepseek-chat'
+            model: 'deepseek-lite'
         }
     });
 });
@@ -82,7 +82,7 @@ app.post('/api/chat', async (req, res) => {
                     { role: "system", content: "You are a helpful assistant." },
                     { role: "user", content: message }
                 ],
-                model: "deepseek-chat",
+                model: "deepseek-lite",
                 temperature: 0.7,
                 max_tokens: 2000
             });
