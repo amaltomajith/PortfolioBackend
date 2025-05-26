@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { GoogleGenAI } = require('@google/genai');
+const fetch = require('node-fetch'); // We'll need this for making HTTP requests
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -13,9 +13,6 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Accept'],
     credentials: true
 }));
-
-// Initialize Gemini
-const ai = new GoogleGenAI(process.env.GEMINI_API_KEY);
 
 // Add a health check endpoint
 app.get('/health', (req, res) => {
@@ -37,26 +34,45 @@ app.post('/api/chat', async (req, res) => {
             return res.status(500).json({ error: 'API key not configured' });
         }
 
-        // Generate response using the new API
-        const model = ai.models;
-        const response = await model.generateContent({
-            model: "gemini-2.0-flash",
-            contents: message
-        });
+        // Call Gemini API directly
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contents: [
+                        {
+                            parts: [
+                                {
+                                    text: message
+                                }
+                            ]
+                        }
+                    ]
+                })
+            }
+        );
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error?.message || 'Failed to get response from Gemini API');
+        }
+
+        const data = await response.json();
+        const generatedText = data.candidates[0].content.parts[0].text;
         
-        console.log('Generated response:', response.text); // Log response
+        console.log('Generated response:', generatedText); // Log response
         
-        res.json({ response: response.text });
+        res.json({ response: generatedText });
     } catch (error) {
         console.error('Detailed error:', error);
-        if (error.message?.includes('API key')) {
-            res.status(500).json({ error: 'API key configuration error' });
-        } else {
-            res.status(500).json({ 
-                error: 'Failed to process the request',
-                details: error.message
-            });
-        }
+        res.status(500).json({ 
+            error: 'Failed to process the request',
+            details: error.message
+        });
     }
 });
 
