@@ -14,6 +14,17 @@ app.use(cors({
     credentials: true
 }));
 
+// Root route
+app.get('/', (req, res) => {
+    res.json({ 
+        message: 'Welcome to the Chatbot API',
+        endpoints: {
+            health: '/health',
+            chat: '/api/chat (POST)'
+        }
+    });
+});
+
 // Add a health check endpoint
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', message: 'Server is running' });
@@ -21,7 +32,7 @@ app.get('/health', (req, res) => {
 
 app.post('/api/chat', async (req, res) => {
     try {
-        console.log('Received request:', req.body); // Log incoming request
+        console.log('Received request:', req.body);
         
         const { message } = req.body;
         if (!message) {
@@ -34,6 +45,8 @@ app.post('/api/chat', async (req, res) => {
             return res.status(500).json({ error: 'API key not configured' });
         }
 
+        console.log('Making request to Gemini API...');
+        
         // Call Gemini API directly
         const response = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -56,15 +69,24 @@ app.post('/api/chat', async (req, res) => {
             }
         );
 
+        console.log('Gemini API response status:', response.status);
+        
         if (!response.ok) {
             const errorData = await response.json();
+            console.error('Gemini API error:', errorData);
             throw new Error(errorData.error?.message || 'Failed to get response from Gemini API');
         }
 
         const data = await response.json();
-        const generatedText = data.candidates[0].content.parts[0].text;
+        console.log('Gemini API response data:', data);
         
-        console.log('Generated response:', generatedText); // Log response
+        if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
+            console.error('Unexpected response format:', data);
+            throw new Error('Unexpected response format from Gemini API');
+        }
+
+        const generatedText = data.candidates[0].content.parts[0].text;
+        console.log('Generated response:', generatedText);
         
         res.json({ response: generatedText });
     } catch (error) {
@@ -78,4 +100,6 @@ app.post('/api/chat', async (req, res) => {
 
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
+    console.log('Environment check:');
+    console.log('- API key configured:', !!process.env.GEMINI_API_KEY);
 }); 
