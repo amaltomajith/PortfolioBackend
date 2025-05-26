@@ -8,7 +8,7 @@ const port = process.env.PORT || 3000;
 // Middleware
 app.use(express.json());
 app.use(cors({
-    origin: ['https://amaltomajith.github.io', 'http://localhost:3000'], // Add your GitHub Pages domain
+    origin: ['https://amaltomajith.github.io/PortfolioFrontent', 'http://localhost:3000'], // Updated GitHub Pages domain
     methods: ['POST'],
     credentials: true
 }));
