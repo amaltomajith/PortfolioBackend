@@ -35,9 +35,9 @@ try {
 // Middleware
 app.use(express.json());
 app.use(cors({
-    origin: ['https://amaltomajith.github.io', 'http://localhost:3000', 'http://127.0.0.1:5500'],
+    origin: ['https://amaltomajith.github.io', 'http://localhost:3000', 'http://127.0.0.1:5500', 'https://amaltom.life', 'https://www.amaltom.life'],
     methods: ['POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Accept', 'Origin'],
     credentials: true
 }));
 
