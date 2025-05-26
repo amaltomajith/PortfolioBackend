@@ -8,8 +8,9 @@ const port = process.env.PORT || 3000;
 // Middleware
 app.use(express.json());
 app.use(cors({
-    origin: ['https://amaltomajith.github.io/PortfolioFrontent', 'http://localhost:3000'], // Updated GitHub Pages domain
-    methods: ['POST'],
+    origin: '*', // Allow all origins during testing
+    methods: ['POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Accept'],
     credentials: true
 }));
 
@@ -18,20 +19,36 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 app.post('/api/chat', async (req, res) => {
     try {
-        const { message } = req.body;
+        console.log('Received request:', req.body); // Log incoming request
         
+        const { message } = req.body;
+        if (!message) {
+            return res.status(400).json({ error: 'Message is required' });
+        }
+
         // Initialize the model
         const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        
+        console.log('Generating response for:', message); // Log before generating
         
         // Generate response
         const result = await model.generateContent(message);
         const response = await result.response;
         const text = response.text();
         
+        console.log('Generated response:', text); // Log response
+        
         res.json({ response: text });
     } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ error: 'Failed to process the request' });
+        console.error('Detailed error:', error);
+        if (error.message?.includes('API key')) {
+            res.status(500).json({ error: 'API key configuration error' });
+        } else {
+            res.status(500).json({ 
+                error: 'Failed to process the request',
+                details: error.message
+            });
+        }
     }
 });
 
